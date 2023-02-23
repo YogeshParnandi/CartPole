@@ -22,8 +22,8 @@ A = np.matrix([[0,1,0,0],
                [0, 0, MASS_POLE * g * LENGTH_POLE * (MASS_CART + MASS_POLE)/den, 0]
                ])
 B = np.matrix([0, (INERTIA + MASS_POLE * LENGTH_POLE**2)/den, 0, -MASS_POLE * LENGTH_POLE/den]).T
-# C = np.matrix([[1,0,0,0], [0,0,1,0]])
-# D = np.matrix([0,0]).T
+C = np.matrix([[1,0,0,0], [0,0,1,0]])
+D = np.matrix([0,0]).T
 
 Q = np.diag([1, 1, 1, 1])
 R = np.diag([0.1])
@@ -36,6 +36,7 @@ class CartPoleLQR:
         self.cartvel = 0
         self.polePos = 0
         self.poleVel = 0
+        self.ss = None
         self.state = 0
         self.reset_dur = 1
         self.freq = 50
@@ -53,22 +54,23 @@ class CartPoleLQR:
     def controlLoop(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
-            U = np.matmul(K, (self.desired_state - self.state))
+            U = -1 * np.matmul(K, (self.state - self.desired_state))
             cmd_vel = float(U)
             self.pub_velocity.publish(cmd_vel)
             rate.sleep()
     
     def check_controllability(self):
-        _ctrb = ct.ctrb(self.ss.A, self.ss.B)
+        ss = ct.ss(A,B,C,D)
+        _ctrb = ct.ctrb(ss.A, ss.B)
         _rank = np.linalg.matrix_rank(_ctrb)
-        print(_rank)
+        print("The rank of the system is ",_rank)
         if _rank == 4:
-            print("Controllable System")
+            print("Therefore, it is a Controllable System")
 
 if __name__ == '__main__':
     print("hello")
-    rospy.init_node('myControllerNode')
+    rospy.init_node('CartController', anonymous=True)
     cartpole = CartPoleLQR()
-    # cartpole.check_controllability()
+    cartpole.check_controllability()
     cartpole.controlLoop()
     rospy.spin()
